@@ -8,7 +8,7 @@ namespace Service.UserAccount.Postgres
 	public class DatabaseContext : MyDbContext
 	{
 		public const string Schema = "education";
-		private const string UserAccountAccountTableName = "useraccount_account";
+		private const string UserAccountAccountTableName = "userprofile_account";
 
 		public DatabaseContext(DbContextOptions options) : base(options)
 		{

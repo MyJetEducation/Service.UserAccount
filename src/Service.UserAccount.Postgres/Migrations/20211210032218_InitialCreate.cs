@@ -13,7 +13,7 @@ namespace Service.UserAccount.Postgres.Migrations
                 name: "education");
 
             migrationBuilder.CreateTable(
-                name: "useraccount_account",
+                name: "userprofile_account",
                 schema: "education",
                 columns: table => new
                 {
@@ -26,14 +26,14 @@ namespace Service.UserAccount.Postgres.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_useraccount_account", x => x.UserId);
+                    table.PrimaryKey("PK_userprofile_account", x => x.UserId);
                 });
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "useraccount_account",
+                name: "userprofile_account",
                 schema: "education");
         }
     }

@@ -50,7 +50,7 @@ namespace Service.UserAccount.Postgres.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("useraccount_account", "education");
+                    b.ToTable("userprofile_account", "education");
                 });
 #pragma warning restore 612, 618
         }
