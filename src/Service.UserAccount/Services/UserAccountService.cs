@@ -114,7 +114,7 @@ namespace Service.UserAccount.Services
 			DateTime hashDate = changeEmail.Date;
 			int timeoutMinutes = Program.ReloadedSettings(model => model.ChangeEmailHashTimeoutMinutes).Invoke();
 
-			if (hashDate.AddMinutes(timeoutMinutes) > _systemClock.Now)
+			if (hashDate.AddMinutes(timeoutMinutes) <= _systemClock.Now)
 			{
 				_logger.LogWarning("Change email hash ({token}) is out of date: {date} for user: {user}", hash, hashDate, changeEmail.UserId);
 
