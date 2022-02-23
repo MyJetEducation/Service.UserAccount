@@ -26,6 +26,10 @@ namespace Service.UserAccount.Modules
 				.Register(context => new MyServiceBusPublisher<UserAccountFilledServiceBusModel>(tcpServiceBus, UserAccountFilledServiceBusModel.TopicName, false))
 				.As<IServiceBusPublisher<UserAccountFilledServiceBusModel>>()
 				.SingleInstance();
+			builder
+				.Register(context => new MyServiceBusPublisher<ChangeEmailServiceBusModel>(tcpServiceBus, ChangeEmailServiceBusModel.TopicName, false))
+				.As<IServiceBusPublisher<ChangeEmailServiceBusModel>>()
+				.SingleInstance();
 
 			tcpServiceBus.Start();
 		}
