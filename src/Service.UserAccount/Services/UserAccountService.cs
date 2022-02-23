@@ -73,16 +73,18 @@ namespace Service.UserAccount.Services
 
 		public async ValueTask<CommonGrpcResponse> ChangeEmailRequest(ChangeEmailRequestGrpcRequest request)
 		{
+			string email = request.Email;
+
 			string token = _encoderDecoder.EncodeProto(new ChangeEmailGrpcModel
 			{
 				UserId = request.UserId,
-				Email = request.Email,
+				Email = email,
 				Date = _systemClock.Now
 			});
 
 			var changeEmailServiceBusModel = new ChangeEmailServiceBusModel
 			{
-				UserId = request.UserId,
+				Email = email,
 				Hash = token
 			};
 
