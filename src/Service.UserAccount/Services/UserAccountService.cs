@@ -53,7 +53,7 @@ namespace Service.UserAccount.Services
 			{
 				var accountFilledServiceBusModel = new UserAccountFilledServiceBusModel {UserId = request.UserId};
 
-				_logger.LogDebug($"Publish into to service bus: {JsonSerializer.Serialize(accountFilledServiceBusModel)}");
+				_logger.LogDebug($"Publish UserAccountFilledServiceBusModel into to service bus: {JsonSerializer.Serialize(accountFilledServiceBusModel)}");
 
 				await _accoutFilledPublisher.PublishAsync(accountFilledServiceBusModel);
 			}
@@ -88,7 +88,7 @@ namespace Service.UserAccount.Services
 				Hash = token
 			};
 
-			_logger.LogDebug($"Publish into to service bus: {JsonSerializer.Serialize(changeEmailServiceBusModel)}");
+			_logger.LogDebug($"Publish ChangeEmailServiceBusModel into to service bus: {JsonSerializer.Serialize(changeEmailServiceBusModel)}");
 
 			await _changeEmailPublisher.PublishAsync(changeEmailServiceBusModel);
 
