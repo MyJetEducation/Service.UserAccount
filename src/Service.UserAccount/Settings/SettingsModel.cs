@@ -19,5 +19,11 @@ namespace Service.UserAccount.Settings
 
         [YamlProperty("UserAccount.ServiceBusWriter")]
         public string ServiceBusWriter { get; set; }
+
+        [YamlProperty("UserAccount.UserInfoCrudServiceUrl")]
+        public string UserInfoCrudServiceUrl { get; set; }
+
+        [YamlProperty("UserAccount.ChangeEmailHashTimeoutMinutes")]
+        public int ChangeEmailHashTimeoutMinutes { get; set; }
     }
 }
