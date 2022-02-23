@@ -12,7 +12,7 @@ namespace Service.UserAccount.Domain.Models
 		[DataMember(Order = 2)]
 		public string Email { get; set; }
 
-		[DataMember(Order = 2)]
+		[DataMember(Order = 3)]
 		public DateTime Date { get; set; }
 	}
 }
