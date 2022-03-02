@@ -1,4 +1,5 @@
-﻿using Autofac;
+﻿using System;
+using Autofac;
 using Microsoft.Extensions.Logging;
 using MyJetWallet.Sdk.ServiceBus;
 using MyServiceBus.TcpClient;
@@ -16,7 +17,9 @@ namespace Service.UserAccount.Modules
 		{
 			builder.RegisterType<AccountRepository>().AsImplementedInterfaces().SingleInstance();
 			builder.RegisterType<SystemClock>().AsImplementedInterfaces().SingleInstance();
-			builder.RegisterType<TokenCache>().AsImplementedInterfaces().SingleInstance();
+			
+			builder.RegisterType<ObjectCache<Guid?>>().AsImplementedInterfaces().SingleInstance();
+			builder.RegisterType<ObjectCache<string>>().AsImplementedInterfaces().SingleInstance();
 			
 			builder.Register(context => new EncoderDecoder(Program.EncodingKey)).As<IEncoderDecoder>().SingleInstance();
 

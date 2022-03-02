@@ -27,7 +27,8 @@ namespace Service.UserAccount.Services
 		private readonly ILogger<UserAccountService> _logger;
 		private readonly ISystemClock _systemClock;
 		private readonly IGrpcServiceProxy<IUserInfoService> _userInfoService;
-		private readonly ITokenCache _tokenCache;
+		private readonly IObjectCache<string> _hashCache;
+		private readonly IObjectCache<Guid?> _userIdCache;
 
 		public UserAccountService(IAccountRepository accountRepository,
 			IEncoderDecoder encoderDecoder,
@@ -36,7 +37,7 @@ namespace Service.UserAccount.Services
 			ISystemClock systemClock,
 			IServiceBusPublisher<ChangeEmailServiceBusModel> changeEmailPublisher,
 			IGrpcServiceProxy<IUserInfoService> userInfoService,
-			ITokenCache tokenCache)
+			IObjectCache<string> hashCache, IObjectCache<Guid?> userIdCache)
 		{
 			_accountRepository = accountRepository;
 			_encoderDecoder = encoderDecoder;
@@ -45,7 +46,8 @@ namespace Service.UserAccount.Services
 			_systemClock = systemClock;
 			_changeEmailPublisher = changeEmailPublisher;
 			_userInfoService = userInfoService;
-			_tokenCache = tokenCache;
+			_hashCache = hashCache;
+			_userIdCache = userIdCache;
 		}
 
 		public async ValueTask<CommonGrpcResponse> SaveAccount(SaveAccountGrpcRequest request)
@@ -76,12 +78,17 @@ namespace Service.UserAccount.Services
 
 		public async ValueTask<ChangeEmailGrpcResponse> ChangeEmailRequest(ChangeEmailRequestGrpcRequest request)
 		{
+			Guid? userId = request.UserId;
 			string email = request.Email;
 
+			if (_userIdCache.Exists(userId))
+				return new ChangeEmailGrpcResponse();
+
 			UserInfoGrpcModel userInfo = (await _userInfoService.Service.GetUserInfoByLoginAsync(new UserInfoAuthRequest {UserName = email}))?.UserInfo;
+
 			if (userInfo != null)
 			{
-				bool fromCurrentUser = userInfo.UserId == request.UserId;
+				bool fromCurrentUser = userInfo.UserId == userId;
 
 				return new ChangeEmailGrpcResponse
 				{
@@ -92,12 +99,15 @@ namespace Service.UserAccount.Services
 
 			int timeoutMinutes = Program.ReloadedSettings(model => model.ChangeEmailHashTimeoutMinutes).Invoke();
 
+			DateTime expired = _systemClock.Now.AddMinutes(timeoutMinutes);
 			string token = _encoderDecoder.EncodeProto(new ChangeEmailGrpcModel
 			{
-				UserId = request.UserId,
+				UserId = userId,
 				Email = email,
-				Expired = _systemClock.Now.AddMinutes(timeoutMinutes)
+				Expired = expired
 			});
+
+			_userIdCache.Add(userId, expired);
 
 			var changeEmailServiceBusModel = new ChangeEmailServiceBusModel
 			{
@@ -117,7 +127,7 @@ namespace Service.UserAccount.Services
 			string hash = request.Hash;
 			ChangeEmailGrpcModel changeEmail;
 
-			if (_tokenCache.Exists(hash))
+			if (_hashCache.Exists(hash))
 				return new ChangeEmailConfirmGrpcResponse {HashAlreadyUsed = true};
 
 			try
@@ -139,7 +149,7 @@ namespace Service.UserAccount.Services
 				return new ChangeEmailConfirmGrpcResponse {HashExpired = true};
 			}
 
-			_tokenCache.Add(hash, expired);
+			_hashCache.Add(hash, expired);
 
 			CommonGrpcResponse response = await _userInfoService.TryCall(service => service.ChangeUserNameAsync(new ChangeUserNameRequest
 			{
