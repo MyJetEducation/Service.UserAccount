@@ -8,45 +8,56 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MyJetWallet.Sdk.Service;
 using MySettingsReader;
-using Service.Core.Client.Extensions;
+using Service.Core.Client.Constants;
+using Service.Core.Client.Helpers;
 using Service.UserAccount.Settings;
 
 namespace Service.UserAccount
 {
 	public class Program
 	{
-		public const string SettingsFileName = ".myjeteducation";
-		public const string EncodingKeyStr = "ENCODING_KEY";
-
-		public static string EncodingKey { get; set; }
-
 		public static SettingsModel Settings { get; private set; }
 
 		public static ILoggerFactory LogFactory { get; private set; }
 
-		public static Func<T> ReloadedSettings<T>(Func<SettingsModel, T> getter) => () =>
-		{
-			var settings = SettingsReader.GetSettings<SettingsModel>(SettingsFileName);
-			return getter.Invoke(settings);
-		};
+		public static string EncodingKey { get; set; }
 
 		public static void Main(string[] args)
 		{
 			Console.Title = "MyJetEducation Service.UserAccount";
+			Settings = LoadSettings();
+			EncodingKey = ProgramHelper.GetEnvVariable("ENCODING_KEY");
 
-			Settings = SettingsReader.GetSettings<SettingsModel>(SettingsFileName);
-
-			GetEnvVariables();
-
-			using ILoggerFactory loggerFactory = LogConfigurator.ConfigureElk("MyJetEducation", Settings.SeqServiceUrl, Settings.ElkLogs);
-			ILogger<Program> logger = loggerFactory.CreateLogger<Program>();
+			using ILoggerFactory loggerFactory = LogConfigurator.ConfigureElk(Configuration.ProductName, Settings.SeqServiceUrl, Settings.ElkLogs);
 			LogFactory = loggerFactory;
+
+			CreateHostBuilder(loggerFactory, args);
+		}
+
+		private static SettingsModel LoadSettings() => SettingsReader.GetSettings<SettingsModel>(ProgramHelper.SettingsFileName);
+
+		public static Func<T> ReloadedSettings<T>(Func<SettingsModel, T> getter) => () => getter.Invoke(LoadSettings());
+
+		public static void CreateHostBuilder(ILoggerFactory loggerFactory, string[] args)
+		{
+			ILogger<Program> logger = loggerFactory.CreateLogger<Program>();
 
 			try
 			{
 				logger.LogInformation("Application is being started");
 
-				CreateHostBuilder(loggerFactory, args).Build().Run();
+				Host.CreateDefaultBuilder(args)
+					.UseServiceProviderFactory(new AutofacServiceProviderFactory())
+					.ConfigureWebHostDefaults(webBuilder =>
+						webBuilder.ConfigureKestrel(options =>
+						{
+							options.Listen(IPAddress.Any, ProgramHelper.LoadPort("HTTP_PORT", "8080"), o => o.Protocols = HttpProtocols.Http1);
+							options.Listen(IPAddress.Any, ProgramHelper.LoadPort("GRPC_PORT", "80"), o => o.Protocols = HttpProtocols.Http2);
+						}).UseStartup<Startup>())
+					.ConfigureServices(services => services
+						.AddSingleton(loggerFactory)
+						.AddSingleton(typeof(ILogger<>), typeof(Logger<>)))
+					.Build().Run();
 
 				logger.LogInformation("Application has been stopped");
 			}
@@ -54,41 +65,6 @@ namespace Service.UserAccount
 			{
 				logger.LogCritical(ex, "Application has been terminated unexpectedly");
 			}
-		}
-
-		public static IHostBuilder CreateHostBuilder(ILoggerFactory loggerFactory, string[] args) =>
-			Host.CreateDefaultBuilder(args)
-				.UseServiceProviderFactory(new AutofacServiceProviderFactory())
-				.ConfigureWebHostDefaults(webBuilder =>
-				{
-					string httpPort = Environment.GetEnvironmentVariable("HTTP_PORT") ?? "8080";
-					string grpcPort = Environment.GetEnvironmentVariable("GRPC_PORT") ?? "80";
-
-					Console.WriteLine($"HTTP PORT: {httpPort}");
-					Console.WriteLine($"GRPC PORT: {grpcPort}");
-
-					webBuilder.ConfigureKestrel(options =>
-					{
-						options.Listen(IPAddress.Any, int.Parse(httpPort), o => o.Protocols = HttpProtocols.Http1);
-						options.Listen(IPAddress.Any, int.Parse(grpcPort), o => o.Protocols = HttpProtocols.Http2);
-					});
-
-					webBuilder.UseStartup<Startup>();
-				})
-				.ConfigureServices(services =>
-				{
-					services.AddSingleton(loggerFactory);
-					services.AddSingleton(typeof (ILogger<>), typeof (Logger<>));
-				});
-
-		private static void GetEnvVariables()
-		{
-			string key = Environment.GetEnvironmentVariable(EncodingKeyStr);
-
-			if (key.IsNullOrEmpty())
-				throw new Exception($"Env Variable {EncodingKeyStr} is not found");
-
-			EncodingKey = key;
 		}
 	}
 }

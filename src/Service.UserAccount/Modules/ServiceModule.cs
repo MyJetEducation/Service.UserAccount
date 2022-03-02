@@ -5,6 +5,7 @@ using MyServiceBus.TcpClient;
 using Service.Core.Client.Services;
 using Service.ServiceBus.Models;
 using Service.UserAccount.Postgres.Services;
+using Service.UserAccount.Services;
 using Service.UserInfo.Crud.Client;
 
 namespace Service.UserAccount.Modules
@@ -15,6 +16,7 @@ namespace Service.UserAccount.Modules
 		{
 			builder.RegisterType<AccountRepository>().AsImplementedInterfaces().SingleInstance();
 			builder.RegisterType<SystemClock>().AsImplementedInterfaces().SingleInstance();
+			builder.RegisterType<TokenCache>().AsImplementedInterfaces().SingleInstance();
 			
 			builder.Register(context => new EncoderDecoder(Program.EncodingKey)).As<IEncoderDecoder>().SingleInstance();
 

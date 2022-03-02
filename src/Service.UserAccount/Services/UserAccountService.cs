@@ -27,14 +27,16 @@ namespace Service.UserAccount.Services
 		private readonly ILogger<UserAccountService> _logger;
 		private readonly ISystemClock _systemClock;
 		private readonly IGrpcServiceProxy<IUserInfoService> _userInfoService;
+		private readonly ITokenCache _tokenCache;
 
 		public UserAccountService(IAccountRepository accountRepository,
 			IEncoderDecoder encoderDecoder,
 			IServiceBusPublisher<UserAccountFilledServiceBusModel> accoutFilledPublisher,
-			ILogger<UserAccountService> logger, 
-			ISystemClock systemClock, 
-			IServiceBusPublisher<ChangeEmailServiceBusModel> changeEmailPublisher, 
-			IGrpcServiceProxy<IUserInfoService> userInfoService)
+			ILogger<UserAccountService> logger,
+			ISystemClock systemClock,
+			IServiceBusPublisher<ChangeEmailServiceBusModel> changeEmailPublisher,
+			IGrpcServiceProxy<IUserInfoService> userInfoService,
+			ITokenCache tokenCache)
 		{
 			_accountRepository = accountRepository;
 			_encoderDecoder = encoderDecoder;
@@ -43,6 +45,7 @@ namespace Service.UserAccount.Services
 			_systemClock = systemClock;
 			_changeEmailPublisher = changeEmailPublisher;
 			_userInfoService = userInfoService;
+			_tokenCache = tokenCache;
 		}
 
 		public async ValueTask<CommonGrpcResponse> SaveAccount(SaveAccountGrpcRequest request)
@@ -71,9 +74,21 @@ namespace Service.UserAccount.Services
 			};
 		}
 
-		public async ValueTask<CommonGrpcResponse> ChangeEmailRequest(ChangeEmailRequestGrpcRequest request)
+		public async ValueTask<ChangeEmailGrpcResponse> ChangeEmailRequest(ChangeEmailRequestGrpcRequest request)
 		{
 			string email = request.Email;
+
+			UserInfoGrpcModel userInfo = (await _userInfoService.Service.GetUserInfoByLoginAsync(new UserInfoAuthRequest {UserName = email}))?.UserInfo;
+			if (userInfo != null)
+			{
+				bool fromCurrentUser = userInfo.UserId == request.UserId;
+
+				return new ChangeEmailGrpcResponse
+				{
+					EmailAlreadyRegistered = !fromCurrentUser,
+					CantChangeToSameEmail = fromCurrentUser
+				};
+			}
 
 			string token = _encoderDecoder.EncodeProto(new ChangeEmailGrpcModel
 			{
@@ -92,13 +107,16 @@ namespace Service.UserAccount.Services
 
 			await _changeEmailPublisher.PublishAsync(changeEmailServiceBusModel);
 
-			return CommonGrpcResponse.Success;
+			return new ChangeEmailGrpcResponse();
 		}
 
-		public async ValueTask<CommonGrpcResponse> ChangeEmailConfirm(ChangeEmailConfirmGrpcRequest request)
+		public async ValueTask<ChangeEmailConfirmGrpcResponse> ChangeEmailConfirm(ChangeEmailConfirmGrpcRequest request)
 		{
 			string hash = request.Hash;
 			ChangeEmailGrpcModel changeEmail;
+
+			if (_tokenCache.Exists(hash))
+				return new ChangeEmailConfirmGrpcResponse {HashAlreadyUsed = true};
 
 			try
 			{
@@ -108,7 +126,7 @@ namespace Service.UserAccount.Services
 			{
 				_logger.LogError("Can't decode change email token ({token}), with message {message}", hash, exception.Message);
 
-				return CommonGrpcResponse.Fail;
+				return new ChangeEmailConfirmGrpcResponse {Changed = false};
 			}
 
 			DateTime hashDate = changeEmail.Date;
@@ -118,14 +136,21 @@ namespace Service.UserAccount.Services
 			{
 				_logger.LogWarning("Change email hash ({token}) is out of date: {date} for user: {user}", hash, hashDate, changeEmail.UserId);
 
-				return CommonGrpcResponse.Fail;
+				return new ChangeEmailConfirmGrpcResponse {HashExpired = true};
 			}
 
-			return await _userInfoService.TryCall(service => service.ChangeUserNameAsync(new ChangeUserNameRequest
+			_tokenCache.Add(hash, hashDate);
+
+			CommonGrpcResponse response = await _userInfoService.TryCall(service => service.ChangeUserNameAsync(new ChangeUserNameRequest
 			{
 				UserId = changeEmail.UserId,
 				Email = changeEmail.Email
 			}));
+
+			return new ChangeEmailConfirmGrpcResponse
+			{
+				Changed = response?.IsSuccess == true
+			};
 		}
 	}
 }

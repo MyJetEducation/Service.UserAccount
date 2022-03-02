@@ -15,9 +15,9 @@ namespace Service.UserAccount.Grpc
 		ValueTask<CommonGrpcResponse> SaveAccount(SaveAccountGrpcRequest request);
 
 		[OperationContract]
-		ValueTask<CommonGrpcResponse> ChangeEmailRequest(ChangeEmailRequestGrpcRequest request);
+		ValueTask<ChangeEmailGrpcResponse> ChangeEmailRequest(ChangeEmailRequestGrpcRequest request);
 
 		[OperationContract]
-		ValueTask<CommonGrpcResponse> ChangeEmailConfirm(ChangeEmailConfirmGrpcRequest request);
+		ValueTask<ChangeEmailConfirmGrpcResponse> ChangeEmailConfirm(ChangeEmailConfirmGrpcRequest request);
 	}
 }
