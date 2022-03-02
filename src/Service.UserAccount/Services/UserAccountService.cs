@@ -142,20 +142,23 @@ namespace Service.UserAccount.Services
 			}
 
 			DateTime expired = changeEmail.Expired;
+			Guid? userId = changeEmail.UserId;
+
 			if (expired <= _systemClock.Now)
 			{
-				_logger.LogWarning("Change email hash ({token}) is out of date: {date} for user: {user}", hash, expired, changeEmail.UserId);
+				_logger.LogWarning("Change email hash ({token}) is out of date: {date} for user: {user}", hash, expired, userId);
 
 				return new ChangeEmailConfirmGrpcResponse {HashExpired = true};
 			}
 
-			_hashCache.Add(hash, expired);
-
 			CommonGrpcResponse response = await _userInfoService.TryCall(service => service.ChangeUserNameAsync(new ChangeUserNameRequest
 			{
-				UserId = changeEmail.UserId,
+				UserId = userId,
 				Email = changeEmail.Email
 			}));
+
+			_hashCache.Add(hash, expired);
+			_userIdCache.Remove(userId);
 
 			return new ChangeEmailConfirmGrpcResponse
 			{
