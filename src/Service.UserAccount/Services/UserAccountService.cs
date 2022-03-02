@@ -76,7 +76,6 @@ namespace Service.UserAccount.Services
 
 		public async ValueTask<ChangeEmailGrpcResponse> ChangeEmailRequest(ChangeEmailRequestGrpcRequest request)
 		{
-			request.UserId = new Guid("95b1ee44-e2ee-4761-a872-dd73336888ae");
 			string email = request.Email;
 
 			UserInfoGrpcModel userInfo = (await _userInfoService.Service.GetUserInfoByLoginAsync(new UserInfoAuthRequest {UserName = email}))?.UserInfo;
