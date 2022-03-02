@@ -13,6 +13,6 @@ namespace Service.UserAccount.Domain.Models
 		public string Email { get; set; }
 
 		[DataMember(Order = 3)]
-		public DateTime Date { get; set; }
+		public DateTime Expired { get; set; }
 	}
 }

@@ -76,6 +76,7 @@ namespace Service.UserAccount.Services
 
 		public async ValueTask<ChangeEmailGrpcResponse> ChangeEmailRequest(ChangeEmailRequestGrpcRequest request)
 		{
+			request.UserId = new Guid("95b1ee44-e2ee-4761-a872-dd73336888ae");
 			string email = request.Email;
 
 			UserInfoGrpcModel userInfo = (await _userInfoService.Service.GetUserInfoByLoginAsync(new UserInfoAuthRequest {UserName = email}))?.UserInfo;
@@ -90,11 +91,13 @@ namespace Service.UserAccount.Services
 				};
 			}
 
+			int timeoutMinutes = Program.ReloadedSettings(model => model.ChangeEmailHashTimeoutMinutes).Invoke();
+
 			string token = _encoderDecoder.EncodeProto(new ChangeEmailGrpcModel
 			{
 				UserId = request.UserId,
 				Email = email,
-				Date = _systemClock.Now
+				Expired = _systemClock.Now.AddMinutes(timeoutMinutes)
 			});
 
 			var changeEmailServiceBusModel = new ChangeEmailServiceBusModel
@@ -129,17 +132,15 @@ namespace Service.UserAccount.Services
 				return new ChangeEmailConfirmGrpcResponse {Changed = false};
 			}
 
-			DateTime hashDate = changeEmail.Date;
-			int timeoutMinutes = Program.ReloadedSettings(model => model.ChangeEmailHashTimeoutMinutes).Invoke();
-
-			if (hashDate.AddMinutes(timeoutMinutes) <= _systemClock.Now)
+			DateTime expired = changeEmail.Expired;
+			if (expired <= _systemClock.Now)
 			{
-				_logger.LogWarning("Change email hash ({token}) is out of date: {date} for user: {user}", hash, hashDate, changeEmail.UserId);
+				_logger.LogWarning("Change email hash ({token}) is out of date: {date} for user: {user}", hash, expired, changeEmail.UserId);
 
 				return new ChangeEmailConfirmGrpcResponse {HashExpired = true};
 			}
 
-			_tokenCache.Add(hash, hashDate);
+			_tokenCache.Add(hash, expired);
 
 			CommonGrpcResponse response = await _userInfoService.TryCall(service => service.ChangeUserNameAsync(new ChangeUserNameRequest
 			{
