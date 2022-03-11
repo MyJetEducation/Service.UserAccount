@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="SimpleTrading.Common" Version="1.0.32" />
     <PackageReference Include="MyJetWallet.Sdk.ServiceBus" Version="2.2.2" />
-    <PackageReference Include="MyJetEducation.Service.ServiceBus" Version="1.0.15" />
+    <PackageReference Include="MyJetEducation.Service.ServiceBus" Version="1.0.16" />
     <PackageReference Include="MyJetEducation.Service.Core.Client" Version="1.0.32" />
     <PackageReference Include="MyJetEducation.Service.Grpc" Version="1.0.7" />
     <PackageReference Include="MyJetWallet.Sdk.GrpcMetrics" Version="2.0.4" />
